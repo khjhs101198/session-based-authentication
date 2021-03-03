@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Register</title>
+  </head>
+  <body>
+    <h2>Register</h2>
+    <form class="" action="/register" method="post">
+      <div class="">
+        <label for="email">Email</label>
+        <input type="email" name="email" value="" required/>
+      </div>
+      <div class="">
+        <label for="userName">User Name</label>
+        <input type="text" name="userName" value="" required/>
+      </div>
+      <div class="">
+        <label for="password">Password</label>
+        <input type="password" name="password" value="" required/>
+      </div>
+      <div class="">
+        <input type="submit" value="Submit">
+      </div>
+    </form>
+    <% if(mesg) { %>
+      <p><%=mesg%></p>
+    <% } %>
+  </body>
+</html>

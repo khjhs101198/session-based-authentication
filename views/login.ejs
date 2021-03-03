@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Login</title>
+  </head>
+  <body>
+    <h2>Login</h2>
+    <form class="" action="/login" method="post">
+      <div class="">
+        <label for="email">Email</label>
+        <input type="email" name="email" value="" required/>
+      </div>
+      <div class="">
+        <label for="password">Password</label>
+        <input type="password" name="password" value="" required/>
+      </div>
+      <div class="">
+        <input type="submit" value="Login">
+      </div>
+    </form>
+    <% if(mesg) { %>
+      <p><%=mesg%></p>
+    <% } %>
+  </body>
+</html>
