@@ -6,7 +6,7 @@ router.get("/", auth.isLogin, (req, res) => {
   res.render("register", {mesg: ""});
 });
 
-router.post("/", auth.doRegister, async (req, res) => {
+router.post("/", auth.doRegister, (req, res) => {
   res.redirect("/login");
 });
 

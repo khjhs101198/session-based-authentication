@@ -6,8 +6,7 @@ async function doRegister(req, res, next) {
   /*Check if the given email has exited*/
   await userModel.findOne({email: req.body.email})
     .then((user) => {
-      if(user==null) return next();
-      return res.render("register", {mesg: "This email is used"});
+      if(user) return res.render("register", {mesg: "This email is used"});
     }).catch((err) => {
       throw err;
     });
