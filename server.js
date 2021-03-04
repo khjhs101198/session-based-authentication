@@ -5,6 +5,8 @@ const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
 const userModel = require("./models/users");
 const MongoStore = require('connect-mongo').default;
+const route_login = require("./routes/route_login");
+const route_register = require("./routes/route_register");
 const app = express();
 
 const dbURL = "mongodb+srv://Jimmy:jimmy956379@cluster0.mzswg.azure.mongodb.net/Session-based?retryWrites=true&w=majority";
@@ -34,32 +36,13 @@ app.use(session({
   saveUninitialized: false
 }));
 
+app.use("/login", route_login);
+app.use("/register", route_register);
+
 app.get("/", (req, res) => {
   res.render("home");
 });
 
-app.get("/login", isLogin, (req, res) => {
-  res.render("login", {mesg: ""});
-});
-
-app.post("/login", authenticateUser, (req, res) => {
-  res.redirect("/");
-});
-
-app.get("/register", isLogin, (req, res) => {
-  res.render("register", {mesg: ""});
-});
-
-app.post("/register", checkAccount, async (req, res) => {
-  let hashPassword = await bcrypt.hash(req.body.password, 12);
-  let storage = await userModel({
-    userName: req.body.userName,
-    email: req.body.email,
-    password: hashPassword,
-    time: new Date().toString()
-  }).save();
-  res.redirect("/login");
-});
 
 app.delete("/logout", (req, res) => {
   req.session.destroy(() => {
@@ -77,43 +60,7 @@ app.listen(process.env.PORT||5000, (err)=>{
   if(err) throw err;
   console.log("Server started");
 });
-
-function checkAccount(req, res, next) {
-  /*Check if the given email has exited*/
-  userModel.findOne({email: req.body.email})
-    .then((user) => {
-      if(user==null) return next();
-      res.render("register", {mesg: "This email is used"});
-    }).catch((err) => {
-      throw err;
-    });
-}
-
-async function authenticateUser(req, res, next) {
-  let user = await userModel.findOne({email: req.body.email});
-
-  if(user==null) return res.render("login", {mesg: "Wrong email"});
-
-  let result = await bcrypt.compare(req.body.password, user.password);
-
-  if(result==false) return res.render("login", {mesg: "Wrong password"});
-
-  req.session.isAuth = true;
-  req.session.userName = user.userName;
-  next();
-}
-
-function isAuth(req, res, next) {
-  if(req.session.isAuth) return next();
-  res.redirect("/login");
-}
-
-function isLogin(req, res, next) {
-  if(req.session.isAuth) return res.redirect("/");
-  next();
-}
-
-/**/
+/*
 app.get("/test", (req, res) => {
   console.log(req.session.flash);
   res.send(`Test page: ${req.flash("Info")}`);
@@ -135,3 +82,4 @@ app.get("/destroy", (req, res) => {
   });
   res.send("Destroy page");
 });
+*/
