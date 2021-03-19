@@ -51,7 +51,7 @@ app.get("/", (req, res) => {
   res.render("home");
 });
 
-app.listen(8080, (err)=>{
+app.listen(5000, (err)=>{
   if(err) throw err;
   console.log("Server started");
 });
