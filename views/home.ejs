@@ -1,13 +1,15 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
-  <head>
-    <meta charset="utf-8">
-    <title>Home</title>
-  </head>
-  <body>
-    <h1>This is home page</h1>
-    <button type="button" id="logout">Log out</button>
-  </body>
-  <script src="https://code.jquery.com/jquery-3.6.0.js" type="text/javascript"></script>
-  <script src="/scripts/home.js" type="text/javascript"></script>
-</html>
+<%- include('partials/header'); -%>
+
+<header>
+  <div class="smoothie">
+    <img src="/images/smoothie.png" alt="">
+  </div>
+  <div class="headings">
+    <h2>Smoothie Recipes</h2>
+    <h3>By Ninjas For Ninjas</h3>
+    <a href="/resource/smoothies" class="btn">View Recipes</a>
+  </div>
+</header>
+
+
+<%- include('partials/footer'); -%>
