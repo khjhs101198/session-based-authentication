@@ -18,3 +18,14 @@ module.exports.isLog = (req, res, next) => {
 
     next();
 };
+
+module.exports.getUserID = (req, res, next) => {
+    // show the user information on the header bar
+    if(req.session.isAuth) {
+        res.locals.userID = req.session.userID;
+        return next();
+    } else {
+        res.locals.userID = "Guest";
+        return next();
+    }
+};

@@ -8,6 +8,7 @@ app.set("view engine", "ejs");
 app.use(express.json(), express.urlencoded({extended: false}), cookieParser());
 app.use(express.static("./public"));
 app.use(require("./config/setup_session"));
+app.use(require("./middlewares/mid_auth").getUserID);
 
 // database
 const db = require("./config/setup_database");
