@@ -20,6 +20,6 @@ router.route("/google/login")
     .get(googleAuth.googleLogIn_get)
 
 router.route("/google/callback")
-    .get(googleAuth.checkState, googleAuth.getToken, googleAuth.googleCallback_get)
+    .get(googleAuth.checkState, googleAuth.getToken, googleAuth.requireData, googleAuth.googleCallback_get)
 
 module.exports = router;
