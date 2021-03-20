@@ -35,7 +35,7 @@ module.exports.register_post = async function (req, res) {
 };
 
 module.exports.logout_get = (req, res) => {
-    req.session.destroy(()=>{
+    req.session.destroy(() => {
         console.log("Session destroyed");
     });
     res.clearCookie("sid");
