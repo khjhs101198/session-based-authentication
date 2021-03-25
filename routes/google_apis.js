@@ -8,8 +8,11 @@ router.route("/openid")
     .get(googleAuth.googleLogIn_get)
 
 // Callback url from google auth server
-router.route("/callback")
-    .get(googleAuth.checkState, googleAuth.getIDToken, googleAuth.googleCallback_get)
+router.route("/centralCallback")
+    .get(googleAuth.googleCentralCallback_get)
+
+router.route("/callback/openid")
+    .get(googleAuth.checkState, googleAuth.getIDToken, googleAuth.googleOpenidCallback)
 
 router.route("/")
     .get(mid_auth.isAuth, googleapis.googleapi_get)

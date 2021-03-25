@@ -1,6 +1,6 @@
 const oauth2Client = require("../config/setup_googleapis");
 const crypto = require("crypto");
-const axios = require("axios");
+const queryString = require("querystring");
 const userModel_google = require("../models/user_google");
 
 // redirect users to google auth server
@@ -9,8 +9,14 @@ module.exports.googleLogIn_get = (req, res) => {
     res.redirect(authURL);
 };
 
-// callback route for google auth server
-module.exports.googleCallback_get = async (req, res) => {
+// redirect to different callback url according to state
+module.exports.googleCentralCallback_get = async (req, res) => {
+    let redURL = req.query.state.slice(req.query.state.indexOf("?")+1, req.query.state.length);
+
+    res.redirect(redURL + `?${queryString.stringify(req.query)}`);
+};
+
+module.exports.googleOpenidCallback = async (req, res) => {
     let tokens = req.tokens;
 
     try {
@@ -36,28 +42,36 @@ module.exports.googleCallback_get = async (req, res) => {
             user.picture = payload.picture;
             await user.save();
         }
+
+        res.send("Succed to log in with google account");
     } catch(err) {
         throw err;
     }
-
-    res.send("Succeed to log in with google account");
 };
 
 // check the state parameter 
 module.exports.checkState = (req, res, next) => {
-    if(req.query.state===req.cookies.google_state) {
+    let state = req.query.state;
+
+    if(state===req.cookies.google_state) {
         return next();
     } else {
-        return res.redirect("/auth/login");
+        return res.redirect("/auth/login"); 
     }
 };
 
 // use auth code to get tokens
 module.exports.getIDToken = async (req, res, next) => {
-    const { tokens } = await oauth2Client.getToken(req.query);
-    oauth2Client.setCredentials(tokens);
-    req.tokens = tokens; 
-    next();
+    try {
+        const { tokens } = await oauth2Client.getToken(req.query);
+        oauth2Client.setCredentials(tokens);
+        req.tokens = tokens; 
+        next();
+    } catch(err) {
+        // (1) The user rejects to grant the scopes that our app requires. (2) other errors
+        console.log(err);
+        res.redirect("/auth/login");
+    }
 }
 
 /*---------Internal functions---------*/
@@ -67,9 +81,10 @@ function generateLoginURL(req, res) {
 
     const scopes = ["profile"];
     const randomState = crypto.randomBytes(48).toString("base64");
+    const redURL = "?/api/google/callback/openid";
 
     // store the random state in cookie temporarily
-    res.cookie("google_state", randomState, {
+    res.cookie("google_state", randomState + redURL, {
         httpOnly: true,
         secure: process.env.NODE_ENV=="production" || false,
         sameSite: "lax",
@@ -80,7 +95,7 @@ function generateLoginURL(req, res) {
     const authURL = oauth2Client.generateAuthUrl({
         scope: scopes,
         access_type: "offline",
-        state: randomState,
+        state: randomState + redURL,
         prompt: "select_account"
     });
 
