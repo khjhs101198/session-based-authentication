@@ -96,7 +96,8 @@ function generateLoginURL(req, res) {
         scope: scopes,
         access_type: "offline",
         state: randomState + redURL,
-        prompt: "select_account"
+        prompt: "select_account",
+        include_granted_scopes: true
     });
 
     return authURL;
