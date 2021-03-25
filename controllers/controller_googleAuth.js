@@ -3,36 +3,47 @@ const crypto = require("crypto");
 const axios = require("axios");
 const userModel_google = require("../models/user_google");
 
+// redirect users to google auth server
 module.exports.googleLogIn_get = (req, res) => {
-    const authURL = generateAuthURL(req, res);
+    const authURL = generateLoginURL(req, res);
     res.redirect(authURL);
 };
 
+// callback route for google auth server
 module.exports.googleCallback_get = async (req, res) => {
-    try {
-        let user = await userModel_google.findOne({google_id: req.userProfile.id});
+    let tokens = req.tokens;
 
-        req.session.userID = req.userProfile.id;
+    try {
+        let idToken = await oauth2Client.verifyIdToken({
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_OAUTH_CLIENT_ID
+        });
+        let payload = idToken.getPayload();
+        let user = await userModel_google.findOne({google_id: payload.sub});
+
+        req.session.userID = payload.sub;
         req.session.isAuth = true;
 
-        if(user) {
-            res.json(user.google_id);
+        if(!user) {
+            await userModel_google.create({
+                google_id: payload.sub,
+                name: payload.name,
+                picture: payload.picture,
+                scope: tokens.scope
+            });
         } else {
-            await userModel_google.create({google_id: req.userProfile.id});
-            res.send("New user is created by using google account");
+            user.name = payload.name;
+            user.picture = payload.picture;
+            await user.save();
         }
     } catch(err) {
         throw err;
     }
+
+    res.send("Succeed to log in with google account");
 };
 
-module.exports.getToken = async (req, res, next) => {
-    const { tokens } = await oauth2Client.getToken(req.query);
-    oauth2Client.setCredentials(tokens);
-    req.tokens = tokens;
-    next();
-}
-
+// check the state parameter 
 module.exports.checkState = (req, res, next) => {
     if(req.query.state===req.cookies.google_state) {
         return next();
@@ -41,15 +52,19 @@ module.exports.checkState = (req, res, next) => {
     }
 };
 
-module.exports.requireData = async (req, res, next) => {
-    const tokenEndpoint = `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${req.tokens.access_token}`
-    const userProfile = await axios.get(tokenEndpoint);
-    req.userProfile = userProfile.data;
+// use auth code to get tokens
+module.exports.getIDToken = async (req, res, next) => {
+    const { tokens } = await oauth2Client.getToken(req.query);
+    oauth2Client.setCredentials(tokens);
+    req.tokens = tokens; 
     next();
-};
+}
 
-// Internal functions
-function generateAuthURL(req, res) {
+/*---------Internal functions---------*/
+
+// generate the log in url
+function generateLoginURL(req, res) {
+
     const scopes = ["profile"];
     const randomState = crypto.randomBytes(48).toString("base64");
 
@@ -64,7 +79,9 @@ function generateAuthURL(req, res) {
     // generate the redirect url to auth server
     const authURL = oauth2Client.generateAuthUrl({
         scope: scopes,
-        state: randomState
+        access_type: "offline",
+        state: randomState,
+        prompt: "select_account"
     });
 
     return authURL;
