@@ -16,6 +16,7 @@ const db = require("./config/setup_database");
 // routers
 app.use("/auth", require("./routes/authentication"));
 app.use("/resource", require("./routes/resource"));
+app.use("/api/google", require("./routes/google_apis"));
 
 // home page
 app.get("/", (req, res) => {

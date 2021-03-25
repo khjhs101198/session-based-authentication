@@ -8,6 +8,21 @@ const userSchema = new Schema({
     type: String,
     unique: true,
     required: [true, "Please enter the google id"]
+  },
+  name: {
+    type: String
+  },
+  picture: {
+    type: String
+  },
+  scope: {
+    type: String
+  },
+  access_token: {
+    type: String
+  },
+  refresh_token: {
+    type: String
   }
 });
 

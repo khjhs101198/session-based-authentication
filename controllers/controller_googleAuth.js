@@ -1,60 +1,90 @@
 const oauth2Client = require("../config/setup_googleapis");
 const crypto = require("crypto");
-const axios = require("axios");
+const queryString = require("querystring");
 const userModel_google = require("../models/user_google");
 
+// redirect users to google auth server
 module.exports.googleLogIn_get = (req, res) => {
-    const authURL = generateAuthURL(req, res);
+    const authURL = generateLoginURL(req, res);
     res.redirect(authURL);
 };
 
-module.exports.googleCallback_get = async (req, res) => {
-    try {
-        let user = await userModel_google.findOne({google_id: req.userProfile.id});
+// redirect to different callback url according to state
+module.exports.googleCentralCallback_get = async (req, res) => {
+    let redURL = req.query.state.slice(req.query.state.indexOf("?")+1, req.query.state.length);
 
-        req.session.userID = req.userProfile.id;
+    res.redirect(redURL + `?${queryString.stringify(req.query)}`);
+};
+
+module.exports.googleOpenidCallback = async (req, res) => {
+    let tokens = req.tokens;
+
+    try {
+        let idToken = await oauth2Client.verifyIdToken({
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_OAUTH_CLIENT_ID
+        });
+        let payload = idToken.getPayload();
+        let user = await userModel_google.findOne({google_id: payload.sub});
+
+        req.session.userID = payload.sub;
         req.session.isAuth = true;
 
-        if(user) {
-            res.json(user.google_id);
+        if(!user) {
+            await userModel_google.create({
+                google_id: payload.sub,
+                name: payload.name,
+                picture: payload.picture,
+                scope: tokens.scope
+            });
         } else {
-            await userModel_google.create({google_id: req.userProfile.id});
-            res.send("New user is created by using google account");
+            user.name = payload.name;
+            user.picture = payload.picture;
+            await user.save();
         }
+
+        res.send("Succed to log in with google account");
     } catch(err) {
         throw err;
     }
 };
 
-module.exports.getToken = async (req, res, next) => {
-    const { tokens } = await oauth2Client.getToken(req.query);
-    oauth2Client.setCredentials(tokens);
-    req.tokens = tokens;
-    next();
-}
-
+// check the state parameter 
 module.exports.checkState = (req, res, next) => {
-    if(req.query.state===req.cookies.google_state) {
+    let state = req.query.state;
+
+    if(state===req.cookies.google_state) {
         return next();
     } else {
-        return res.redirect("/auth/login");
+        return res.redirect("/auth/login"); 
     }
 };
 
-module.exports.requireData = async (req, res, next) => {
-    const tokenEndpoint = `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${req.tokens.access_token}`
-    const userProfile = await axios.get(tokenEndpoint);
-    req.userProfile = userProfile.data;
-    next();
-};
+// use auth code to get tokens
+module.exports.getIDToken = async (req, res, next) => {
+    try {
+        const { tokens } = await oauth2Client.getToken(req.query);
+        oauth2Client.setCredentials(tokens);
+        req.tokens = tokens; 
+        next();
+    } catch(err) {
+        // (1) The user rejects to grant the scopes that our app requires. (2) other errors
+        console.log(err);
+        res.redirect("/auth/login");
+    }
+}
 
-// Internal functions
-function generateAuthURL(req, res) {
+/*---------Internal functions---------*/
+
+// generate the log in url
+function generateLoginURL(req, res) {
+
     const scopes = ["profile"];
     const randomState = crypto.randomBytes(48).toString("base64");
+    const redURL = "?/api/google/callback/openid";
 
     // store the random state in cookie temporarily
-    res.cookie("google_state", randomState, {
+    res.cookie("google_state", randomState + redURL, {
         httpOnly: true,
         secure: process.env.NODE_ENV=="production" || false,
         sameSite: "lax",
@@ -64,7 +94,9 @@ function generateAuthURL(req, res) {
     // generate the redirect url to auth server
     const authURL = oauth2Client.generateAuthUrl({
         scope: scopes,
-        state: randomState
+        access_type: "offline",
+        state: randomState + redURL,
+        prompt: "select_account"
     });
 
     return authURL;
