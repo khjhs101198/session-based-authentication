@@ -1,43 +1,60 @@
 const oauth2Client = require("../config/setup_googleapis");
 const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 const queryString = require("querystring");
 const userModel_google = require("../models/user_google");
+const driveModel = require("../models/drive");
 
 // redirect users to google auth server
 module.exports.googleLogIn_get = (req, res) => {
-    const authURL = generateLoginURL(req, res);
+    const scopes = ["profile"];
+    const redURL = "/api/google/callback/openid";
+    const authURL = generateLoginURL(res, scopes, redURL);
+
     res.redirect(authURL);
 };
 
 // redirect to different callback url according to state
-module.exports.googleCentralCallback_get = async (req, res) => {
-    let redURL = req.query.state.slice(req.query.state.indexOf("?")+1, req.query.state.length);
+module.exports.googleCentralCallback_get = (req, res) => {
 
-    res.redirect(redURL + `?${queryString.stringify(req.query)}`);
+    let state = JSON.parse(req.query.state.slice(req.query.state.indexOf("{"), req.query.state.indexOf("}")+1));
+
+    res.redirect(state.redURL + `?${queryString.stringify(req.query)}`);
 };
 
 module.exports.googleOpenidCallback = async (req, res) => {
-    let tokens = req.tokens;
+    let tokens = req.tokens; 
 
     try {
+        // Check the idToken is from google
         let idToken = await oauth2Client.verifyIdToken({
             idToken: tokens.id_token,
             audience: process.env.GOOGLE_OAUTH_CLIENT_ID
         });
         let payload = idToken.getPayload();
+
         let user = await userModel_google.findOne({google_id: payload.sub});
-
-        req.session.userID = payload.sub;
-        req.session.isAuth = true;
-
+  
         if(!user) {
+            // The user first log in with google account
             await userModel_google.create({
                 google_id: payload.sub,
                 name: payload.name,
-                picture: payload.picture,
-                scope: tokens.scope
+                picture: payload.picture
             });
+
+            return res.send("Account created by google, please log in again");
         } else {
+            // The user already has an account
+            let drive = await driveModel.findOne({aud: user._id});
+            if(drive) {
+                req.session.tokenExpiration = drive.expiry_date;
+            }
+
+            req.session.userID = user._id;
+            req.session.google_id = payload.sub;
+            req.session.isAuth = true;
+
             user.name = payload.name;
             user.picture = payload.picture;
             await user.save();
@@ -77,14 +94,13 @@ module.exports.getIDToken = async (req, res, next) => {
 /*---------Internal functions---------*/
 
 // generate the log in url
-function generateLoginURL(req, res) {
+function generateLoginURL(res, scopes, redURL) {
 
-    const scopes = ["profile"];
-    const randomState = crypto.randomBytes(48).toString("base64");
-    const redURL = "?/api/google/callback/openid";
+    let random = crypto.randomBytes(48).toString("base64");
+    let state = JSON.stringify({redURL});
 
     // store the random state in cookie temporarily
-    res.cookie("google_state", randomState + redURL, {
+    res.cookie("google_state", random + state, {
         httpOnly: true,
         secure: process.env.NODE_ENV=="production" || false,
         sameSite: "lax",
@@ -95,9 +111,11 @@ function generateLoginURL(req, res) {
     const authURL = oauth2Client.generateAuthUrl({
         scope: scopes,
         access_type: "offline",
-        state: randomState + redURL,
-        prompt: "select_account"
+        state: random + state,
+        prompt: "select_account",
+        include_granted_scopes: true
     });
 
     return authURL;
 }
+
