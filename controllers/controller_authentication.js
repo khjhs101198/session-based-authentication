@@ -1,4 +1,6 @@
-const userModel = require("../models/users");
+const { drive } = require("googleapis/build/src/apis/drive");
+const userModel = require("../models/user_local");
+const driveModel = require("../models/drive");
 
 module.exports.login_get = (req ,res) => {
     res.render("login");
@@ -9,8 +11,15 @@ module.exports.login_post = async function (req, res) {
   
     try {
       let user = await userModel.login(email, password);
+
+      let drive = await driveModel.findOne({aud: user._id});
+      if(drive) {
+        req.session.tokenExpiration = drive.expiry_date;
+      }
+
       req.session.userID = user._id;
       req.session.isAuth = true;
+      
       res.json({id: user._id});
     } catch(err) {
       let errors = errorHandler(err);
@@ -70,5 +79,5 @@ function errorHandler(err) {
     }
   
     return errors;
-  }
+}
 
