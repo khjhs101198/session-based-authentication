@@ -1,81 +1,51 @@
 const express = require("express");
-const session = require("express-session");
-const mongoose = require("mongoose");
-const cookieParser = require("cookie-parser");
-const MongoStore = require('connect-mongo').default;
-
-/*Import routers*/
-const route_login = require("./routes/route_login");
-const route_register = require("./routes/route_register");
-const route_logout = require("./routes/route_logout");
-const route_secret = require("./routes/route_secret");
+const { OAuth2Client } = require('google-auth-library');
 const app = express();
 
-/*Set password database*/
-const dbURL = "mongodb+srv://Jimmy:jimmy956379@cluster0.mzswg.azure.mongodb.net/Session-based?retryWrites=true&w=majority";
-const clientP = mongoose.connect(dbURL, {useNewUrlParser: true, useUnifiedTopology: true})
-  .then((res) => {
-    return res.connection.getClient();
-  }).catch((err) => {
-    console.log(err);
-  })
+const oauth2Client = new OAuth2Client(
+    "599170504630-4h0vek5k1jpplj2ce193n3408qt32mor.apps.googleusercontent.com",
+    "B16RDX8yPFJnZTcfIPbM8dWd",
+    "http://localhost:5000/callback"
+);
 
-/*Set middlewares*/
 app.set("view engine", "ejs");
-app.use(express.json(), express.urlencoded({extended: false}), cookieParser());
-app.use(express.static("./public"));
-app.use(session({
-  name: "sid",
-  secret: "something123",
-  cookie: {
-    maxAge: 1000 * 60 * 60, // 2min
-    sameSite: "strict",
-    secure: process.env.NODE_ENV=="production" || false
-  },
-  store: MongoStore.create({
-    clientPromise: clientP,
-    autoRemove: "interval",
-    autoRemoveInterval: 60
-  }),
-  resave: false,
-  saveUninitialized: false
-}));
-
-/*Set routers middlewares*/
-app.use("/login", route_login);
-app.use("/register", route_register);
-app.use("/logout", route_logout);
-app.use("/secret", route_secret);
 
 app.get("/", (req, res) => {
-  res.render("home");
+    res.render("test");
 });
 
-app.listen(5000, (err)=>{
-  if(err) throw err;
-  console.log("Server started");
+app.get("/auth", (req, res) => {
+    res.redirect(genAuth());
 });
 
-/*
-app.get("/test", (req, res) => {
-  console.log(req.session.flash);
-  res.send(`Test page: ${req.flash("Info")}`);
-  console.log(req.session.flash);
+app.get("/callback", getToken, (req, res) => {
+    res.send("callback");
 });
-app.get("/flash", (req, res) => {
-  req.flash("Info", "Hello World");
-  res.redirect("/test");
+
+app.listen(5000, function(err) {
+    if(err) throw err;
+    console.log("Server started");
 });
-app.get("/regenerate", (req, res) => {
-  req.session.regenerate(function() {
-    console.log("Succeed to regenerate sessionID");
-    res.send("regenearte page");
-  });
-});
-app.get("/destroy", (req, res) => {
-  req.session.destroy(() => {
-    console.log("Destroy the session");
-  });
-  res.send("Destroy page");
-});
-*/
+
+function genAuth() {
+    const authURL = oauth2Client.generateAuthUrl({
+        scope: ["https://www.googleapis.com/auth/drive"],
+        prompt: "select_account",
+        include_granted_scopes: true
+    });
+
+    return authURL;
+}
+
+async function getToken(req, res, next) {
+    try {
+        let { tokens } = await oauth2Client.getToken(req.query);
+        console.log(tokens);
+        req.tokens = tokens; 
+        next();
+    } catch(err) {
+        // (1) The user rejects to grant the scopes that our app requires. (2) other errors
+        console.log(err);
+        res.redirect("/");
+    }
+}

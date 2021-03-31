@@ -46,18 +46,24 @@ module.exports.autoRefreshToken = async (req, res, next) => {
 
         if(remain<600) {
             let drive = await driveModel.findOne({aud: req.session.userID});
-            await refreshAccessToken(drive); 
+            await refreshAccessToken(req, drive);
+            console.log("refresh access token"); 
         }
+ 
     } catch(err) {
-        errorHandler(err);
+        if(err.message.includes("400")) {
+            console.log("Invalid refresh token");
+        } else {
+            throw err;
+        }
     }
     next();
 }
 
-async function refreshAccessToken(drive) {
+async function refreshAccessToken(req, drive) {
     let url = "https://oauth2.googleapis.com/token" 
 
-    let token = await axios.post(url, queryString.stringify({
+    let resp = await axios.post(url, queryString.stringify({
         client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
         client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
         grant_type: "refresh_token",
@@ -68,17 +74,9 @@ async function refreshAccessToken(drive) {
         }
     });
 
-    drive.access_token = token.access_token;
+    req.session.tokenExpiration = Date.now() + 3599000;
+
+    drive.access_token = resp.data.access_token;
     drive.expiry_date  = Date.now() + 3599000; // The response dosn't contain expiry_date
     await drive.save();
-}
-
-function errorHandler(err, res) {
-    // Refresh token is invalid
-    if(err.message.includes("403")) {
-        return next();
-    }
-
-    // Other errors
-    throw err;
 }

@@ -5,6 +5,13 @@ const oauth2Client = require("../config/setup_googleapis");
 const driveModel = require("../models/drive");
 
 module.exports.myDrive_get = (req, res) => {
+    // pass current linked drive
+    if(req.session.linkDrive) {
+        res.locals.linkDrive = req.session.linkDrive;
+    } else {
+        res.locals.linkDrive = "none";
+    }
+
     res.render("api");
 };
 
@@ -86,18 +93,28 @@ module.exports.getDrive_put = async (req, res) => {
         }
 
         let reqURL = `https://www.googleapis.com/drive/v3/files`;
-        let data = await axios.get(reqURL, {
+        let driveData = await axios.get(reqURL, {
             headers: {
                 "Authorization": `Bearer ${drive.access_token}`
             }
         });
-        console.log("Success: " + data);
-        res.status(200).json(data);
+        res.status(200).json(driveData.data);
     } catch(err) {
         let errors = errorHandler(err);
         res.json(errors);
     }
 }
+
+module.exports.revoke = async (req, res) => {
+    try {
+        await driveModel.deleteOne({aud: req.session.userID});
+
+        req.session.linkDrive = "";
+        res.send("Tokens deleted");
+    } catch(err) {
+        throw err;
+    }
+};
 
 /*---------Internal functions---------*/
 
@@ -109,7 +126,7 @@ function errorHandler(err) {
     }
 
     if(err.message.includes("403")) {
-        errors.authError = "Invalid tokens";
+        errors.authError = "No credentials";
     }
 
     return errors;
@@ -138,8 +155,4 @@ function generateAuthURL(res, scopes, redURL, aud) {
     });
 
     return authURL;
-}
-
-function getData() {
-
 }

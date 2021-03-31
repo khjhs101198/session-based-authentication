@@ -20,14 +20,16 @@
     </ul>
   </nav>
   <div class="selct_bar">
-      <p>Current linked account:</p>
-      <button id="add_account">Add new account</button>
+      <p>Current linked account: <%=linkDrive%></p>
   </div>
   <button id="getDrive">Get google drive</button>
+  <button id="cancelAccess">Cancel the access</button>
   
   <div class="driveInf">
     <p>Display drive information</p>
-    <p class="authError"></p>  
+    <ul class="content">
+
+    </ul>
   </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.js" type="text/javascript"></script>

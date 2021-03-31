@@ -20,4 +20,7 @@ router.route("/drive")
 router.route("/callback/drive")
     .get(googleAuth.checkState, googleapis.getToken, googleapis.googleDriveCallback)
 
+router.route("/revoke")
+    .delete(googleapis.revoke)
+
 module.exports = router;

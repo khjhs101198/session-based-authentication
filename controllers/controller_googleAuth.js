@@ -49,6 +49,7 @@ module.exports.googleOpenidCallback = async (req, res) => {
             let drive = await driveModel.findOne({aud: user._id});
             if(drive) {
                 req.session.tokenExpiration = drive.expiry_date;
+                req.session.linkDrive = drive.google_id;
             }
 
             req.session.userID = user._id;
@@ -82,6 +83,7 @@ module.exports.getIDToken = async (req, res, next) => {
     try {
         const { tokens } = await oauth2Client.getToken(req.query);
         oauth2Client.setCredentials(tokens);
+        console.log(tokens);
         req.tokens = tokens; 
         next();
     } catch(err) {
@@ -110,10 +112,8 @@ function generateLoginURL(res, scopes, redURL) {
     // generate the redirect url to auth server
     const authURL = oauth2Client.generateAuthUrl({
         scope: scopes,
-        access_type: "offline",
         state: random + state,
-        prompt: "select_account",
-        include_granted_scopes: true
+        prompt: "select_account"
     });
 
     return authURL;
