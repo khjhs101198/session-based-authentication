@@ -1,4 +1,3 @@
-const { drive } = require("googleapis/build/src/apis/drive");
 const userModel = require("../models/user_local");
 const driveModel = require("../models/drive");
 
@@ -15,6 +14,7 @@ module.exports.login_post = async function (req, res) {
       let drive = await driveModel.findOne({aud: user._id});
       if(drive) {
         req.session.tokenExpiration = drive.expiry_date;
+        req.session.linkDrive = drive.google_id;
       }
 
       req.session.userID = user._id;
